@@ -6,50 +6,139 @@
 # Website : http://jadjust.frenchquarterit.com
 #
 
-jQuery ->
-  $.jAdjust = ( element, options ) ->
-    # current state
-    state = ''
+$ ->
+    $.jAdjust = (element, options) ->
+        @defaults = {
+            width               : 272        # integer, width of the container and image,
+            height              : 300        # integer, height of the container and image,
+            show                : false      # boolean, show on load
+     
+            time                : 4000       # animation time
+            showSpeed           : 600        # number, animation showing speed in milliseconds
+                 
+            showEasing          : ''         # string, easing equation on load, must load http:#gsgd.co.uk/sandbox/jquery/easing/
+            hideEasing          : ''         # string, easing equation on hide, must load http:#gsgd.co.uk/sandbox/jquery/easing/
+     
+            containerClass      : 'jAdjust'  # wrapping container class
+            controlsClass       : 'controls' # controls container class
+            controlsHeight      : 26         # height of controls container
+            controlsBackground  : '#000'     # background color for the controls container
+     
+            debug               : true       # show debug data
+            onLoad              : ->         # Function(image), called when the image is being loaded
+            onVisible           : ->         # Function(image), called when the image is loaded
+        }
 
-    # plugin settings
-    @settings = {}
+        # current state of the adjustment
+        state = ''
 
-    # jQuery version of DOM element attached to the plugin
-    @$element = $ element
+        # adjustment settings
+        @settings = {}
 
-    # set current state
-    @setState = ( _state ) -> state = _state
+        # adjustment element
+        @$element = $ element
 
-    #get current state
-    @getState = -> state
+        #
+        # private methods
+        #
+        setState = (_state) ->
+          state = _state
+  
+        wrapElement = =>
+          @$elementContainer = $('<div />', { 'class' : (@getSetting 'containerClass') })
+          @$element.wrap @$elementContainer
 
-    # get particular plugin setting
-    @getSetting = ( key ) ->
-      @settings[ key ]
+        sizeElementAndContainer = =>
+          @$elementContainer = @$element.parent()
+          @$elementContainer.width(@getSetting 'width')
+          @$elementContainer.height((@getSetting 'height') + (@getSetting 'controlsHeight'))
+          @$element.width(@getSetting 'width')
+          @$element.height(@getSetting 'height')
 
-    # call one of the plugin setting functions
-    @callSettingFunction = ( name, args = [] ) ->
-      @settings[name].apply( this, args )
+        addControls = =>
+          @$element.css({display: 'block'})
+          @$elementContainer.append(
+            $('<div />', { 'class' : (@getSetting 'controlsClass') })
+              .css({
+                background: (@getSetting 'controlsBackground'),
+                height: (@getSetting 'controlsHeight')
+              })
+          )
+            
+        addDebugData = =>
+          @$elementContainer.after(
+            $('<div />', { 'class' : 'jAdjust-debug' })
+              .css({
+                background: '#CCC',
+                height: '200px',
+                width: @getSetting('width'),
+                float: 'left',
+                clear: 'both',
+                display: 'block'
+              })
+          )
 
-    @init = ->
-      @settings = $.extend( {}, @defaults, options )
+        #
+        # public methods
+        #
+        @getState = ->
+          state
 
-      @setState 'ready'
+        @getSetting = (settingKey) ->
+          @settings[settingKey]
 
-    # initialise the plugin
-    @init()
+        @callSettingFunction = (functionName) ->
+          @settings[functionName](element)
 
-    # make the plugin chainable
-    this
+        @init = ->
+            setState 'hidden'
+            @settings = $.extend {}, @defaults, options
 
-  # default plugin settings
-  $.jAdjust::defaults =
-      initialZoom: 2 # initial image zoom (1-10)
-      containerWidth: 272
-      containerHeight: 300
+            if (@getSetting 'show') is true
+              @$element.show()
+              setState 'visible'
+            else
+              # set css properties
+              @$element.hide()
 
-  $.fn.jAdjust = ( options ) ->
-    this.each ->
-      if $( this ).data( 'jAdjust' ) is undefined
-        plugin = new $.jAdjust( this, options )
-        $( this).data( 'jAdjust', plugin )
+            # Check the existence of the element
+            if @$element.length
+
+              # wrap the notification content for easier styling
+              wrapElement()
+
+              # set the size of the element and its container
+              sizeElementAndContainer()
+
+              # add controls
+              addControls()
+
+              if (@getSetting 'debug') is true
+                addDebugData()
+
+              @showElement() if @getState() isnt 'showing' and @getState() isnt 'visible'
+
+        # Show image
+        @showElement = ->
+          if @getState() isnt 'showing' and @getState() isnt 'visible'
+            setState 'showing'
+            @callSettingFunction 'onLoad'
+            @$element.fadeIn((@getSetting 'showSpeed'), (@getSetting 'showEasing'), =>
+              setState 'visible'
+              @callSettingFunction 'onVisible'
+            )
+
+        # Initialize the image
+        @init()
+
+        this
+
+    $.fn.jAdjust = (options) ->
+        return this.each ->
+            # Make sure jAdjust hasn't been already attached to the element
+            plugin = ($ this).data('jAdjust')
+            if plugin == undefined
+                plugin = new $.jAdjust this, options
+                ($ this).data 'jAdjust', plugin
+            else
+                plugin.show()

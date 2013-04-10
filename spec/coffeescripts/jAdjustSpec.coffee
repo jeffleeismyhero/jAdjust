@@ -1,38 +1,67 @@
 describe 'jAdjust', ->
   options =
-    initialZoom: 2
-    containerWidth: 272
-    containerHeight: 300
+    width: 272
+    height: 300
+    show: false
+    containerClass: 'newClass'
+  fixtures = "<div id='fixtures'>
+                <img src='../../images/grid-image.jpg' class='jAdjust' />
+              </div>"
 
   beforeEach ->
-    loadFixtures 'fragment.html'
-    @$element = $( '#fixtures' )
+    setFixtures fixtures
+    @$element = $('#fixtures .jAdjust')
 
-  describe 'plugin behavior', ->
-    it 'should be available on the jQuery object', ->
-      expect( $.fn.jAdjust ).toBeDefined()
+  it 'should be available on the jQuery object', ->
+    expect($.fn.jAdjust).toBeDefined()
 
-    it 'should be chainable', ->
-      expect( @$element.jAdjust() ).toBe @$element
+  it 'should be chainable', ->
+    expect(@$element.jAdjust(options)).toBe @$element
 
-    it 'should offers default values', ->
-      plugin = new $.jAdjust( @$element )
+  it 'should offer default values', ->
+    plugin = new $.jAdjust(@$element[0], options)
 
-      expect( plugin.defaults ).toBeDefined()
+    expect(plugin.defaults).toBeDefined()
 
-    it 'should overwrites the settings', ->
-      plugin = new $.jAdjust( @$element, options )
+  it 'should overwrites the settings', ->
+    plugin = new $.jAdjust(@$element[0], options)
 
-      expect( plugin.settings.message ).toBe( options.message )
+    expect(plugin.settings.width).toBe options.width
+    expect(plugin.settings.height).toBe options.height
+    expect(plugin.settings.show).toBe options.show
+    expect(plugin.settings.containerClass).toBe options.containerClass
 
-  describe 'plugin state', ->
-    beforeEach ->
-      @plugin = new $.jAdjust( @$element )
+  describe 'init', ->
+    it 'should wrap the element in the div with containerClass', ->
+      plugin = new $.jAdjust(@$element)
+      $elementContainer = plugin.$element.parent()
+      expect($elementContainer.hasClass(plugin.settings.containerClass)).toBeTruthy() 
 
-    it 'should have a ready state', ->
-      expect( @plugin.getState() ).toBe 'ready'
+    it 'should set the container and element size', ->
+      plugin = new $.jAdjust(@$element, {controlsHeight: 26})
+      $elementContainer = plugin.$element.parent()
+      $element = plugin.$element
 
-    it 'should be updatable', ->
-      @plugin.setState( 'new state' )
+      expect($elementContainer.width()).toBe options.width
+      expect($elementContainer.height()).toBe (options.height + 26)
+      expect($element.width()).toBe options.width
+      expect($element.height()).toBe options.height
 
-      expect( @plugin.getState() ).toBe 'new state'
+    it 'should call showElement on the image by default', ->
+      plugin = new $.jAdjust(@$element)
+      spyOn(plugin, 'showElement')
+
+      plugin.init()
+      expect(plugin.showElement).toHaveBeenCalled()
+
+    it 'should not show the image if show is true', ->
+      plugin = new $.jAdjust(@$element, {show: true})
+      spyOn(plugin, 'showElement')
+
+      plugin.init()
+      expect(plugin.showElement).not.toHaveBeenCalled()
+
+    it 'should add a control div', ->
+      plugin = new $.jAdjust(@$element)
+      $elementContainer = plugin.$element.parent()
+      expect($elementContainer.has("div.controls")).toBeTruthy()
