@@ -86,6 +86,6 @@ describe 'jAdjust', ->
         plugin = new $.jAdjust(@$element, { zoomControlType: 'slider' })
         expect($(".controls .#{plugin.settings.zoomSliderClass}")).toExist()
         expect($(".controls .#{plugin.settings.zoomSliderClass}").slider("option", "max")).toBe plugin.settings.zoomSteps
-        expect($(".controls .#{plugin.settings.zoomSliderClass}").slider("option", "min")).toBe 1
+        expect($(".controls .#{plugin.settings.zoomSliderClass}").slider("option", "min")).toBe plugin.settings.currentZoomStep
         expect($(".controls .#{plugin.settings.zoomSliderClass}").slider("option", "range")).toBe "max"
         expect($(".controls .#{plugin.settings.zoomSliderClass}").slider("option", "value")).toBe plugin.settings.currentZoomStep
