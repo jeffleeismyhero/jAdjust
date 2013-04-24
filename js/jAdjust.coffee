@@ -6,139 +6,241 @@
 # Website : http://jadjust.frenchquarterit.com
 #
 
+class Image
+  constructor: (@element, @options) ->
+    @element.css { }
+    return @element
+
+class Adjuster
+  constructor: (@element, @options) ->
+    @state = 'waiting'
+
+    @size =
+      height: @element.height()
+      width: @element.width()
+
+    @element.wrap("<div class='#{@options.containerClass}' style='position: relative; overflow: hidden;'/>")
+    @container = @element.parent()
+
+    @initImage()
+
+  appendControls: ->
+    @container.after("<div class='#{@options.controlsClass}' />")
+    @controls = $(".#{@options.controlsClass}")
+    if @options.zoomControlType == 'links'
+      @controls.append(@zoomOutLink())
+               .append(@zoomInLink())
+    else
+      @controls.append(@zoomSlider())
+
+    @zoomInLink().on 'click', =>
+      if @options.currentZoomStep < @options.zoomSteps
+        @zoomIn()
+      return false
+
+    @zoomOutLink().on 'click', =>
+      if @options.currentZoomStep > 1
+        @zoomOut()
+      return false
+
+  zoomInLink: -> @$zoomInLink ||= $('<a />', { html: @options.zoomInBtnContent, class: @options.zoomInBtnClass, href: '#' })
+
+  zoomOutLink: -> @$zoomOutLink ||= $('<a />', { html: @options.zoomOutBtnContent, class: @options.zoomOutBtnClass, href: '#' })
+
+  zoomSlider: -> 
+    if @options.initialZoomStep is 0
+      minZoom = @options.currentZoomStep || 0
+    else
+      minZoom = 1
+
+    $('<div />', { class: @options.zoomSliderClass } ).slider({
+      range: 'max',
+      min: minZoom,
+      max: @options.zoomSteps,
+      value: @options.currentZoomStep,
+      slide: (ev, ui) => @calculateSliderZoom(ev, ui)
+    })
+
+  initImage: ->
+    @image = new Image(@element, @options)
+
+    @element.css({ width: @size.width, top: 0, left: 0 })
+
+  hideImage: ->
+    @image.hide()
+
+  showImage: ->
+    @image.show()
+
+  zoomIn: ->
+    if @options.currentZoomStep?
+      @options.currentZoomStep += 1
+    else
+      @options.currentZoomStep = 1
+    
+    @setZoom(@options.currentZoomStep)
+
+  zoomOut: ->
+    if @options.currentZoomStep > 0
+      @options.currentZoomStep -= 1
+    @setZoom(@options.currentZoomStep)
+
+  setZoom: (zoomStep) ->
+    @$originalWidth ||= @image[0].width
+    @$originalHeight ||= @image[0].height
+    "#{(@$originalWidth / @options.zoomSteps) * zoomStep}"
+    imageWidth = (@$originalWidth / @options.zoomSteps) * zoomStep
+    imageHeight = (@$originalHeight / @options.zoomSteps) * zoomStep
+    @image.width(imageWidth).height(imageHeight)
+    @setDraggability()
+    @setCoordinates([@image.width(), @image.height(), @image.position().left, @image.position().top])
+
+  setCrop: ->
+    # console.log("Setting Crop")
+    # console.log("width: #{coords[0]}, height: #{coords[1]}, left: #{coords[2]}, top: #{coords[3]}")
+
+  setDraggability: ->
+    @image.draggable({ opacity: 0.45, stop: (ev, ui) => @calculateCoordinates(ev, ui) })
+    @image.css({ cursor: 'move' })
+
+  calculateCoordinates: (ev, ui) ->
+    hel = ui.helper
+    pos = ui.position
+    top = 0
+    left = 0
+    # Horizontal
+    h = -(hel.outerHeight() - $(hel).parent().outerHeight())
+    if pos.top >= 0
+      hel.animate({ top: 0 }, { duration: 100 })
+      top = 0
+    else if (pos.top <= h)
+      hel.animate({ top: h }, { duration: 100 })
+      top = h
+    else
+      top = pos.top
+    # Vertical
+    v = -(hel.outerWidth() - $(hel).parent().outerWidth())
+    if pos.left >= 0
+      hel.animate({ left: 0 }, { duration: 100 })
+      left = 0
+    else if pos.left <= v
+      hel.animate({ left: v }, { duration: 100 })
+      left = v
+    else
+      left = pos.left
+    @setCoordinates([hel.width(), hel.height(), left, top])
+
+  setCoordinates: (coords) ->
+    # console.log("width: #{coords[0]}, height: #{coords[1]}, left: #{coords[2]}, top: #{coords[3]}")
+
+  repositionImage: ->
+    if @image.width() < @container.width() or @image.height() < @container.height()
+      @image.animate({ left: 0, top: 0 })
+    if (@container.width() - @image.width() - @image.position().left) > 0
+      @image.animate({ left: 0, top: 0 })
+    if (@container.height() - @image.height() - @image.position().top) > 0
+      @image.animate({ left: 0, top: 0 })
+
+  calculateSliderZoom: (ev, ui) ->
+    if ui.value >= @options.currentZoomStep
+      @zoomIn()
+    else
+      @zoomOut()
+      @repositionImage()
+
+  sizeContainer: (containerWidth, containerHeight) ->
+    @container.width(containerWidth).height(containerHeight)
+
+  sizeImage: ->
+    # Automatically size image to fit
+    if @options.initialZoomStep is 0 and !@options.currentZoomStep?
+      loop
+        break if @options.currentZoomStep? and @image.width() >= @container.width() and @image.height() >= @container.height()
+        break if @options.currentZoomStep >= @options.zoomSteps
+        @zoomIn()
+    else
+      for x in [1..@options.initialZoomStep] by 1
+        @zoomIn()
+
 $ ->
-    $.jAdjust = (element, options) ->
-        @defaults = {
-            width               : 272        # integer, width of the container and image,
-            height              : 300        # integer, height of the container and image,
-            show                : false      # boolean, show on load
-     
-            time                : 4000       # animation time
-            showSpeed           : 600        # number, animation showing speed in milliseconds
-                 
-            showEasing          : ''         # string, easing equation on load, must load http:#gsgd.co.uk/sandbox/jquery/easing/
-            hideEasing          : ''         # string, easing equation on hide, must load http:#gsgd.co.uk/sandbox/jquery/easing/
-     
-            containerClass      : 'jAdjust'  # wrapping container class
-            controlsClass       : 'controls' # controls container class
-            controlsHeight      : 26         # height of controls container
-            controlsBackground  : '#000'     # background color for the controls container
-     
-            debug               : true       # show debug data
-            onLoad              : ->         # Function(image), called when the image is being loaded
-            onVisible           : ->         # Function(image), called when the image is loaded
-        }
+  $.jAdjust = (element, options) ->
+      @defaults = {
+          hideImage           : true              # boolean, hide image during load
 
-        # current state of the adjustment
-        state = ''
+          containerClass      : 'jAdjust'         # wrapping container class
+          containerWidth      : 272               # integer, width of the container,
+          containerHeight     : 300               # integer, height of the container,
+          
+          controlsClass       : 'controls'        # controls container class
+          controlsHeight      : 26                # height of controls container
+          showControls        : true              # show controls
+          controlsBackground  : '#000'            # background color for the controls container
+          zoomControlType     : 'links'           # control type for zoom (defaults to 'links', 'slider')
+          zoomInBtnContent    : '&#43;'           # content for the zoom in button
+          zoomOutBtnContent   : '&#45;'           # content for the zoom out button
+          zoomInBtnClass      : 'zoom-in-button'  # class associated with the zoom in button
+          zoomOutBtnClass     : 'zoom-out-button' # class associated with the zoom out button
+          zoomSliderClass     : 'zoom-slider'     # class associated with the zoom slider
 
-        # adjustment settings
-        @settings = {}
+          zoomSteps           : 10                # number of incremental zoom steps
+          initialZoomStep     : 0                 # initial zoom step (defaults to 0, which is automatic)
+          
+          debug               : true              # show debug data
+          onLoad              : ->                # Function(image), called when the image is being loaded
+          onVisible           : ->                # Function(image), called when the image is loaded
+          onReady             : ->                # Function(image), called when the jAdjust is ready
+      }
 
-        # adjustment element
-        @$element = $ element
+      # plugin settings
+      @settings = {}
 
-        #
-        # private methods
-        #
-        setState = (_state) ->
-          state = _state
-  
-        wrapElement = =>
-          @$elementContainer = $('<div />', { 'class' : (@getSetting 'containerClass') })
-          @$element.wrap @$elementContainer
+      # jQuery version of DOM element attached to the plugin
+      @$element = $ element
 
-        sizeElementAndContainer = =>
-          @$elementContainer = @$element.parent()
-          @$elementContainer.width(@getSetting 'width')
-          @$elementContainer.height((@getSetting 'height') + (@getSetting 'controlsHeight'))
-          @$element.width(@getSetting 'width')
-          @$element.height(@getSetting 'height')
+      # Adjuster object
+      @adjuster = {}
 
-        addControls = =>
-          @$element.css({display: 'block'})
-          @$elementContainer.append(
-            $('<div />', { 'class' : (@getSetting 'controlsClass') })
-              .css({
-                background: (@getSetting 'controlsBackground'),
-                height: (@getSetting 'controlsHeight')
-              })
-          )
-            
-        addDebugData = =>
-          @$elementContainer.after(
-            $('<div />', { 'class' : 'jAdjust-debug' })
-              .css({
-                background: '#CCC',
-                height: '200px',
-                width: @getSetting('width'),
-                float: 'left',
-                clear: 'both',
-                display: 'block'
-              })
-          )
+      ## public methods
 
-        #
-        # public methods
-        #
-        @getState = ->
-          state
+      # get particular plugin setting
+      @getSetting = (settingKey) ->
+        @settings[settingKey]
 
-        @getSetting = (settingKey) ->
-          @settings[settingKey]
+      # call one of the plugin setting functions
+      @callSettingFunction = (functionName) ->
+        @settings[functionName]()
 
-        @callSettingFunction = (functionName) ->
-          @settings[functionName](element)
+      @settings = $.extend {}, @defaults, options
+      @adjuster = new Adjuster(@$element, @settings)
 
-        @init = ->
-            setState 'hidden'
-            @settings = $.extend {}, @defaults, options
+      @hideImage = ->
+        @adjuster.hideImage()
 
-            if (@getSetting 'show') is true
-              @$element.show()
-              setState 'visible'
-            else
-              # set css properties
-              @$element.hide()
+      @showImage = ->
+        @adjuster.showImage()
 
-            # Check the existence of the element
-            if @$element.length
+      # init function
+      @init = ->
+        @callSettingFunction 'onLoad'
+        @hideImage() if @getSetting 'hideImage'
 
-              # wrap the notification content for easier styling
-              wrapElement()
+        if width = @getSetting 'containerWidth'
+          if height = @getSetting 'containerHeight'
+            @adjuster.sizeContainer(width, height)
+            @adjuster.sizeImage()
 
-              # set the size of the element and its container
-              sizeElementAndContainer()
+        @adjuster.appendControls() if @getSetting 'showControls'
 
-              # add controls
-              addControls()
+        @callSettingFunction 'onReady'
+        @showImage()
 
-              if (@getSetting 'debug') is true
-                addDebugData()
+      # Initialize the plugin
+      @init()
 
-              @showElement() if @getState() isnt 'showing' and @getState() isnt 'visible'
-
-        # Show image
-        @showElement = ->
-          if @getState() isnt 'showing' and @getState() isnt 'visible'
-            setState 'showing'
-            @callSettingFunction 'onLoad'
-            @$element.fadeIn((@getSetting 'showSpeed'), (@getSetting 'showEasing'), =>
-              setState 'visible'
-              @callSettingFunction 'onVisible'
-            )
-
-        # Initialize the image
-        @init()
-
-        this
+      this
 
     $.fn.jAdjust = (options) ->
         return this.each ->
-            # Make sure jAdjust hasn't been already attached to the element
-            plugin = ($ this).data('jAdjust')
-            if plugin == undefined
-                plugin = new $.jAdjust this, options
-                ($ this).data 'jAdjust', plugin
-            else
-                plugin.show()
+            if undefined == $(this).data 'jAdjust'
+              plugin = new $.jAdjust this, options
+              $(this).data 'jAdjust', plugin

@@ -21,3 +21,12 @@ h1 strong {
   width: 980px;
   margin:  0 auto;
 }
+
+.jAdjust {
+  /*border: 1px solid #CCC;*/
+}
+
+.controls {
+  width: 272px;
+  margin-top: 10px;
+}

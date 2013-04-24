@@ -2,9 +2,9 @@
 describe('jAdjust', function() {
   var fixtures, options;
   options = {
-    width: 272,
-    height: 300,
-    show: false,
+    containerWidth: 272,
+    containerHeight: 300,
+    hideImage: true,
     containerClass: 'newClass'
   };
   fixtures = "<div id='fixtures'>                <img src='../../images/grid-image.jpg' class='jAdjust' />              </div>";
@@ -26,12 +26,12 @@ describe('jAdjust', function() {
   it('should overwrites the settings', function() {
     var plugin;
     plugin = new $.jAdjust(this.$element[0], options);
-    expect(plugin.settings.width).toBe(options.width);
-    expect(plugin.settings.height).toBe(options.height);
-    expect(plugin.settings.show).toBe(options.show);
+    expect(plugin.settings.containerWidth).toBe(options.containerWidth);
+    expect(plugin.settings.containerHeight).toBe(options.containerHeight);
+    expect(plugin.settings.hideImage).toBe(options.hideImage);
     return expect(plugin.settings.containerClass).toBe(options.containerClass);
   });
-  return describe('init', function() {
+  describe('init', function() {
     it('should wrap the element in the div with containerClass', function() {
       var $elementContainer, plugin;
       plugin = new $.jAdjust(this.$element);
@@ -45,32 +45,57 @@ describe('jAdjust', function() {
       });
       $elementContainer = plugin.$element.parent();
       $element = plugin.$element;
-      expect($elementContainer.width()).toBe(options.width);
-      expect($elementContainer.height()).toBe(options.height + 26);
-      expect($element.width()).toBe(options.width);
-      return expect($element.height()).toBe(options.height);
+      expect($elementContainer.width()).toBe(options.containerWidth);
+      return expect($elementContainer.height()).toBe(options.containerHeight);
     });
-    it('should call showElement on the image by default', function() {
+    it('should call hideImage on the image by default', function() {
       var plugin;
       plugin = new $.jAdjust(this.$element);
-      spyOn(plugin, 'showElement');
+      spyOn(plugin, 'init').andCallThrough();
+      spyOn(plugin, 'hideImage').andCallThrough();
+      expect(plugin.hideImage).toBeDefined();
       plugin.init();
-      return expect(plugin.showElement).toHaveBeenCalled();
+      expect(plugin.hideImage).toHaveBeenCalled();
+      expect(this.$element.is(":hidden")).toBeTruthy();
+      expect(plugin.adjuster instanceof Adjuster).toBeTruthy();
+      return expect(this.$element.prop('tagName')).toBe('IMG');
     });
-    it('should not show the image if show is true', function() {
+    return it('should call showImage on the image when hideImage is false', function() {
       var plugin;
       plugin = new $.jAdjust(this.$element, {
-        show: true
+        hideImage: false
       });
-      spyOn(plugin, 'showElement');
+      spyOn(plugin, 'init').andCallThrough();
+      spyOn(plugin, 'showImage').andCallThrough();
+      expect(plugin.showImage).toBeDefined();
       plugin.init();
-      return expect(plugin.showElement).not.toHaveBeenCalled();
+      expect(plugin.showImage).toHaveBeenCalled();
+      plugin.showImage();
+      expect(plugin.adjuster instanceof Adjuster).toBeTruthy();
+      return expect(this.$element.prop('tagName')).toBe('IMG');
     });
-    return it('should add a control div', function() {
-      var $elementContainer, plugin;
-      plugin = new $.jAdjust(this.$element);
-      $elementContainer = plugin.$element.parent();
-      return expect($elementContainer.has("div.controls")).toBeTruthy();
+  });
+  return describe('controls', function() {
+    return describe('zoom links', function() {
+      it('should generate the zoom links by default', function() {
+        var plugin;
+        plugin = new $.jAdjust(this.$element);
+        expect($(".controls a." + plugin.settings.zoomInBtnClass)).toExist();
+        expect($(".controls a." + plugin.settings.zoomOutBtnClass)).toExist();
+        expect($(".controls a." + plugin.settings.zoomInBtnClass)).toHaveText($('<div />').html(plugin.settings.zoomInBtnContent).text());
+        return expect($(".controls a." + plugin.settings.zoomOutBtnClass)).toHaveText($('<div />').html(plugin.settings.zoomOutBtnContent).text());
+      });
+      return it('should generate the zoom slider on request', function() {
+        var plugin;
+        plugin = new $.jAdjust(this.$element, {
+          zoomControlType: 'slider'
+        });
+        expect($(".controls ." + plugin.settings.zoomSliderClass)).toExist();
+        expect($(".controls ." + plugin.settings.zoomSliderClass).slider("option", "max")).toBe(plugin.settings.zoomSteps);
+        expect($(".controls ." + plugin.settings.zoomSliderClass).slider("option", "min")).toBe(1);
+        expect($(".controls ." + plugin.settings.zoomSliderClass).slider("option", "range")).toBe("max");
+        return expect($(".controls ." + plugin.settings.zoomSliderClass).slider("option", "value")).toBe(plugin.settings.currentZoomStep);
+      });
     });
   });
 });

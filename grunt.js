@@ -25,7 +25,7 @@ module.exports = function(grunt) {
       }
     },
     jasmine : {
-      src     : ['js/libs/**/*.js', 'js/*[^(min)].js', 'spec/javascripts/libs/**/*.js'],
+      src     : ['js/libs/jquery.js','js/libs/jquery-ui.js', 'js/*[^(min)].js', 'spec/javascripts/libs/**/*.js'],
       helpers : 'spec/javascripts/helpers/**/*.js',
       specs   : 'spec/javascripts/**/*.js'
     },
